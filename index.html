@@ -256,6 +256,8 @@ legend { padding: 0; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .fields small, .hint { color: var(--muted); font-size: 12px; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
 .statline { color: var(--muted); margin: 0 0 4px; }
+.steps { margin: 0 0 4px; padding-left: 20px; display: grid; gap: 8px; }
+.steps li { padding-left: 4px; }
 
 dialog { border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 14px; padding: 0; width: min(760px, calc(100% - 24px)); max-width: none; max-height: calc(100dvh - 24px); overflow: hidden; }
 dialog.wide { width: min(1180px, calc(100% - 24px)); }
@@ -312,7 +314,7 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
   <aside class="side">
     <div class="brand">
       <span class="logo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17l5-5 4 4 7-8"/></svg></span>
-      <div><b>Payout Journal</b><small>Shark Funded 50K Lite</small></div>
+      <div><b>Payout Journal</b><small>Funded account tracker</small></div>
     </div>
     <nav class="nav" id="navSide" aria-label="Sections"></nav>
   </aside>
@@ -328,6 +330,18 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
     <p class="warnbar" id="warn" role="status"></p>
 
     <section class="view" id="v-dashboard" aria-label="Dashboard">
+      <section class="card" id="welcome" hidden>
+        <h2>Welcome. Set up in two steps</h2>
+        <ol class="steps">
+          <li><b>Enter your account rules.</b> Open Rules and fill in the buffer, minimum payout, winning days and consistency limit from your firm. Set a rule to 0 if your firm does not use it.</li>
+          <li><b>Log your first trade.</b> Tap New trade. Add the result, your notes and a screenshot. You can draw on the screenshot.</li>
+        </ol>
+        <div class="actions">
+          <a class="primary" href="#rules">Set my rules</a>
+          <button type="button" class="btn" id="welcomeNew">Log a trade</button>
+        </div>
+        <p class="hint">Private by design. Everything you enter stays in this browser on this device. Nothing is sent to a server, and nobody else can see it.</p>
+      </section>
       <div class="kpis" id="kpis"></div>
       <div class="grid2">
         <section class="card" id="ready"></section>
@@ -366,6 +380,7 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
     <section class="view" id="v-rules" aria-label="Rules" hidden>
       <section class="card">
         <h2>Account rules</h2>
+        <p class="hint">Match these to your own firm. Rules save by themselves and only on this device.</p>
         <div class="fields" id="fields"></div>
       </section>
       <section class="card">
@@ -499,16 +514,16 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
 <script>
 (function () {
   'use strict';
-  var DEF = { startProfit: 1200, priorBest: 0, priorWins: 0, buffer: 2000, minPayout: 500, winMin: 250, winsNeeded: 5, limitPct: 40, dailyTarget: 250, stopLoss: 150 };
+  var DEF = { startProfit: 0, priorBest: 0, priorWins: 0, buffer: 0, minPayout: 0, winMin: 200, winsNeeded: 5, limitPct: 40, dailyTarget: 200, stopLoss: 100 };
   var FIELDS = [
-    ['startProfit', 'Profit before tracking', 'Total profit when you started logging'],
-    ['priorBest', 'Best single day so far', 'Needed for the consistency check'],
-    ['priorWins', 'Winning days so far', 'Days that already hit the minimum'],
-    ['buffer', 'Buffer to keep', 'Stays in the account after a payout'],
-    ['minPayout', 'Minimum payout', 'A payout must be more than this'],
-    ['winMin', 'Winning day minimum', 'A day counts at this profit or more'],
-    ['winsNeeded', 'Winning days needed', ''],
-    ['limitPct', 'Consistency limit, %', 'Best day as a share of total profit'],
+    ['startProfit', 'Profit before tracking', 'Total profit you already had when you started using this journal'],
+    ['priorBest', 'Best single day so far', 'Your biggest day before tracking. Used for the consistency check'],
+    ['priorWins', 'Winning days so far', 'Winning days you already had before tracking'],
+    ['buffer', 'Buffer to keep', 'Profit that must stay in the account after a payout. 0 if none'],
+    ['minPayout', 'Minimum payout', 'A payout must be more than this. 0 if none'],
+    ['winMin', 'Winning day minimum', 'A day counts as a winning day at this profit or more'],
+    ['winsNeeded', 'Winning days needed', 'Set 0 if your firm does not ask for winning days'],
+    ['limitPct', 'Consistency limit, %', 'Best day as a share of total profit. Set 0 if your firm has no consistency rule'],
     ['dailyTarget', 'Daily target', 'Stop trading when you reach it'],
     ['stopLoss', 'Daily stop loss', 'Stop trading when you lose this much']
   ];
@@ -722,8 +737,10 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
   function renderReady(m) {
     var c = m.c, box = $('ready');
     box.textContent = '';
-    var consOk = m.pct !== null && m.pct <= m.lim, consDetail;
-    if (m.total <= 0) consDetail = 'Total profit must be above $0';
+    var consOff = c.limitPct <= 0;
+    var consOk = consOff || (m.pct !== null && m.pct <= m.lim), consDetail;
+    if (consOff) consDetail = 'Switched off in Rules';
+    else if (m.total <= 0) consDetail = 'Total profit must be above $0';
     else if (m.best === 0) consDetail = 'Enter your best single day in Rules';
     else {
       consDetail = 'Best day ' + money(m.best) + ' is ' + pct1(m.pct) + ' of profit, limit ' + c.limitPct + '%';
@@ -733,7 +750,7 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
       { n: 'Buffer in the account', ok: m.total >= c.buffer, d: money(m.total) + ' profit, buffer is ' + money(c.buffer) },
       { n: 'Payout above ' + money(c.minPayout), ok: m.avail > c.minPayout, d: money(m.avail) + ' available above the buffer' },
       { n: 'Winning days', ok: m.wins >= c.winsNeeded, d: m.wins + ' of ' + c.winsNeeded + ' days at ' + money(c.winMin) + ' or more' },
-      { n: 'Consistency rule', ok: consOk, d: consDetail, bad: m.pct !== null && !consOk }
+      { n: 'Consistency rule', ok: consOk, d: consDetail, bad: !consOff && m.pct !== null && !consOk }
     ];
     var met = checks.filter(function (x) { return x.ok; }).length, ready = met === checks.length;
     var head = el('div', 'readyhead' + (ready ? ' ready' : ''));
@@ -858,7 +875,7 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
       ['Today so far', money(today, true), today > 0 ? 'pos' : (today < 0 ? 'neg' : '')],
       ['Daily target. Stop when you reach it', money(c.dailyTarget), ''],
       ['Daily stop loss. Stop when you lose it', money(c.stopLoss), ''],
-      ['Biggest day that keeps the ' + c.limitPct + '% rule', money(safe), '']
+      [c.limitPct > 0 ? 'Biggest day that keeps the ' + c.limitPct + '% rule' : 'Consistency rule', c.limitPct > 0 ? money(safe) : 'Off', '']
     ].forEach(function (r) {
       var row = el('div');
       row.appendChild(el('dt', null, r[0]));
@@ -1037,6 +1054,7 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
 
   function renderAll() {
     var m = calc();
+    $('welcome').hidden = Object.keys(entries).length > 0;
     renderKpis(m); renderReady(m); renderChart(m); renderBars(m); renderLimits(m); renderCal(m); renderJournal(m); renderStat();
   }
   function setWarn(t) { $('warn').textContent = t || ''; }
@@ -1413,6 +1431,7 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
   }
 
   function wire() {
+    $('welcomeNew').addEventListener('click', function () { openEntry(null, null); });
     $('newBtn').addEventListener('click', function () { openEntry(null, jf.date && curView() === 'journal' ? jf.date : null); });
     $('entryForm').addEventListener('submit', saveEntry);
     $('entryForm').addEventListener('input', function () { if (draft) draft.dirty = true; });
