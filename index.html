@@ -16,16 +16,22 @@
 <style>
 /* Layout: journal app. Desktop = sticky side panel + content. Phone = bottom tab bar. Views: dashboard, journal, rules. Trade editor and screenshot markup open as dialogs. Dark first, light follows the system or the Rules setting. */
 :root {
-  --bg: #0c0b14;
-  --surface: #15141f;
-  --surface-2: #1d1c2b;
-  --line: #2a2939;
-  --fg: #ecebf5;
-  --muted: #9b99b2;
+  --bg: #090911;
+  --surface: #121220;
+  --surface-2: #1a1a2b;
+  --line: #272741;
+  --fg: #efeff9;
+  --muted: #9c9ab6;
   --accent: #7c5cff;
+  --accent-2: #3ea6ff;
   --accent-fg: #ffffff;
-  --accent-text: #ab97ff;
-  --accent-soft: #251f4a;
+  --accent-text: #b2a3ff;
+  --accent-soft: #231f4d;
+  --grad: linear-gradient(135deg, #8a6bff 0%, #6a55f5 45%, #3ea6ff 130%);
+  --bgfx: radial-gradient(900px 520px at 12% -8%, rgba(124, 92, 255, .20), transparent 62%), radial-gradient(760px 460px at 100% 0%, rgba(62, 166, 255, .11), transparent 60%);
+  --shadow: 0 1px 0 rgba(255, 255, 255, .04) inset, 0 10px 28px -18px rgba(0, 0, 0, .8);
+  --glow: 0 8px 22px -8px rgba(124, 92, 255, .65);
+  --ease: cubic-bezier(.22, .8, .24, 1);
   --good: #34d17f;
   --good-bg: #10301f;
   --bad: #ff6b7a;
@@ -38,15 +44,23 @@
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --bg: #f4f4fa; --surface: #ffffff; --surface-2: #efeef7; --line: #e0dfeb; --fg: #17162a; --muted: #63617a;
-    --accent: #5b3fe0; --accent-fg: #ffffff; --accent-text: #5b3fe0; --accent-soft: #ece8ff;
+    --bg: #f3f3fa; --surface: #ffffff; --surface-2: #eeedf7; --line: #e0dfec; --fg: #15142a; --muted: #5f5d78;
+    --accent: #5b3fe0; --accent-2: #2478e0; --accent-fg: #ffffff; --accent-text: #5236d6; --accent-soft: #ece8ff;
+    --grad: linear-gradient(135deg, #6a4ff0 0%, #5b3fe0 50%, #2f86e8 130%);
+    --bgfx: radial-gradient(900px 520px at 12% -8%, rgba(110, 80, 240, .13), transparent 62%), radial-gradient(760px 460px at 100% 0%, rgba(47, 134, 232, .09), transparent 60%);
+    --shadow: 0 1px 2px rgba(30, 20, 80, .06), 0 10px 26px -18px rgba(40, 30, 110, .35);
+    --glow: 0 8px 20px -8px rgba(91, 63, 224, .55);
     --good: #11723f; --good-bg: #dff3e7; --bad: #c0262f; --bad-bg: #fde7e9; --warn: #8a5a00; --warn-bg: #fbefd2;
     color-scheme: light;
   }
 }
 :root[data-theme="light"] {
-  --bg: #f4f4fa; --surface: #ffffff; --surface-2: #efeef7; --line: #e0dfeb; --fg: #17162a; --muted: #63617a;
-  --accent: #5b3fe0; --accent-fg: #ffffff; --accent-text: #5b3fe0; --accent-soft: #ece8ff;
+  --bg: #f3f3fa; --surface: #ffffff; --surface-2: #eeedf7; --line: #e0dfec; --fg: #15142a; --muted: #5f5d78;
+  --accent: #5b3fe0; --accent-2: #2478e0; --accent-fg: #ffffff; --accent-text: #5236d6; --accent-soft: #ece8ff;
+  --grad: linear-gradient(135deg, #6a4ff0 0%, #5b3fe0 50%, #2f86e8 130%);
+  --bgfx: radial-gradient(900px 520px at 12% -8%, rgba(110, 80, 240, .13), transparent 62%), radial-gradient(760px 460px at 100% 0%, rgba(47, 134, 232, .09), transparent 60%);
+  --shadow: 0 1px 2px rgba(30, 20, 80, .06), 0 10px 26px -18px rgba(40, 30, 110, .35);
+  --glow: 0 8px 20px -8px rgba(91, 63, 224, .55);
   --good: #11723f; --good-bg: #dff3e7; --bad: #c0262f; --bad-bg: #fde7e9; --warn: #8a5a00; --warn-bg: #fbefd2;
   color-scheme: light;
 }
@@ -56,7 +70,7 @@ html { -webkit-text-size-adjust: 100%; }
 img { max-width: 100%; }
 body {
   margin: 0;
-  background: var(--bg); color: var(--fg);
+  background: var(--bgfx), var(--bg); background-attachment: fixed; color: var(--fg);
   font: 14px/1.5 var(--font-body);
   padding-top: calc(16px + env(safe-area-inset-top, 0px));
   padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
@@ -285,31 +299,55 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
   .dlg { height: 100dvh; max-height: 100dvh; }
 }
 
-dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: linear-gradient(180deg, var(--accent-soft) 0, var(--surface) 170px); box-shadow: 0 24px 70px rgba(0, 0, 0, .45); }
-.authform { position: relative; display: grid; gap: 14px; padding: 28px 28px calc(24px + env(safe-area-inset-bottom, 0px)); margin: 0; }
-.authx { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 999px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
-.authx:hover { background: var(--surface-2); color: var(--fg); }
-.authbrand { display: flex; align-items: center; gap: 10px; font: 600 19px var(--font-display); letter-spacing: -.01em; }
-.authform h2 { margin: 6px 0 0; font: 600 26px/1.2 var(--font-display); letter-spacing: -.02em; text-wrap: balance; }
+dialog.auth { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; overflow: auto; background: var(--bg); }
+dialog.auth[open] { animation: gatein .45s var(--ease) both; }
+dialog.auth::backdrop { background: var(--bg); }
+.gate { min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+.authhero { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: 56px clamp(32px, 6vw, 88px); background: linear-gradient(160deg, #1b1550 0%, #12123a 45%, #0b1730 100%); color: #f1f0ff; }
+.authhero .orb { position: absolute; border-radius: 50%; filter: blur(60px); opacity: .55; pointer-events: none; }
+.orb.o1 { width: 380px; height: 380px; left: -90px; top: -80px; background: #7c5cff; animation: drift 14s ease-in-out infinite alternate; }
+.orb.o2 { width: 340px; height: 340px; right: -80px; bottom: -60px; background: #2b8dff; animation: drift 18s ease-in-out infinite alternate-reverse; }
+.authhero > * { position: relative; }
+.authbrand { display: flex; align-items: center; gap: 12px; font: 600 21px var(--font-display); letter-spacing: -.01em; }
+.herotitle { margin: 10px 0 0; font: 600 clamp(30px, 3.6vw, 46px)/1.1 var(--font-display); letter-spacing: -.03em; text-wrap: balance; }
+.herosub { margin: 0; max-width: 46ch; color: rgba(236, 234, 255, .74); font-size: 16px; line-height: 1.55; }
+.herolist { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 14px; }
+.herolist li { display: flex; align-items: center; gap: 14px; animation: rise .6s var(--ease) both; }
+.herolist li:nth-child(1) { animation-delay: .15s; } .herolist li:nth-child(2) { animation-delay: .25s; } .herolist li:nth-child(3) { animation-delay: .35s; }
+.herolist svg { width: 40px; height: 40px; padding: 9px; flex: none; border-radius: 12px; background: rgba(255, 255, 255, .09); border: 1px solid rgba(255, 255, 255, .14); fill: none; stroke: #cfc6ff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.herolist b { display: block; font-weight: 600; font-size: 15px; }
+.herolist small { color: rgba(236, 234, 255, .62); font-size: 13px; }
+.herochart { width: 100%; max-width: 520px; height: 110px; margin-top: 14px; }
+.hc-area { fill: url(#hcg); fill: rgba(124, 92, 255, .22); opacity: 0; animation: fadein 1s .9s ease forwards; }
+.hc-line { fill: none; stroke: #9f8bff; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: drawline 1.6s .35s var(--ease) forwards; }
+.authform { align-self: center; justify-self: center; width: min(420px, 100%); display: grid; gap: 14px; padding: 40px 28px calc(32px + env(safe-area-inset-bottom, 0px)); margin: 0; animation: rise .6s .1s var(--ease) both; }
+.authform h2 { margin: 0; font: 600 28px/1.2 var(--font-display); letter-spacing: -.02em; text-wrap: balance; }
 .authsub { margin: -6px 0 2px; color: var(--muted); font-size: 14px; }
-.authtabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; }
-.authtabs button { border: 0; border-radius: 7px; min-height: 38px; background: transparent; color: var(--muted); font: 600 14px var(--font-body); cursor: pointer; }
-.authtabs button[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
+.authtabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; }
+.authtabs button { border: 0; border-radius: 9px; min-height: 40px; background: transparent; color: var(--muted); font: 600 14px var(--font-body); cursor: pointer; transition: background .2s, color .2s, box-shadow .2s; }
+.authtabs button[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 4px rgba(0, 0, 0, .28); }
 .authform label { color: var(--fg); font-weight: 500; }
-.authform input[type="email"], .authform input[type="password"], .authform input[type="text"] { min-height: 46px; font-size: 16px; border-radius: 10px; }
+.authform input[type="email"], .authform input[type="password"], .authform input[type="text"] { min-height: 48px; font-size: 16px; border-radius: 12px; }
 .pwwrap { position: relative; display: block; }
 .pwwrap input { width: 100%; padding-right: 64px; }
 .pwshow { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); border: 0; background: none; color: var(--accent-text); font: 600 13px var(--font-body); padding: 8px 10px; cursor: pointer; border-radius: 6px; }
 .authhint { margin: -6px 0 0; color: var(--muted); font-size: 12px; }
 .authform .linkbtn { margin-top: -6px; }
-.authgo { width: 100%; min-height: 48px; font-size: 15px; border-radius: 10px; }
+.authgo { width: 100%; min-height: 50px; font-size: 15px; border-radius: 12px; }
 .authgo:disabled { opacity: .6; cursor: wait; }
-.authfoot { margin: 2px 0 0; text-align: center; color: var(--muted); font-size: 12px; }
-@media (max-width: 640px) {
-  dialog.auth { background: linear-gradient(180deg, var(--accent-soft) 0, var(--surface) 220px); }
-  .authform { min-height: 100dvh; align-content: center; padding-top: calc(28px + env(safe-area-inset-top, 0px)); }
+.author { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; margin: 2px 0; }
+.author::before, .author::after { content: ""; height: 1px; flex: 1; background: var(--line); }
+.authfoot { margin: 0; text-align: center; color: var(--muted); font-size: 12px; }
+@media (max-width: 860px) {
+  .gate { grid-template-columns: minmax(0, 1fr); }
+  .authhero { padding: calc(28px + env(safe-area-inset-top, 0px)) 24px 28px; gap: 10px; }
+  .herotitle { font-size: 28px; margin-top: 6px; }
+  .herosub, .herolist li small, .herochart { display: none; }
+  .herolist { display: none; }
+  .authhero { padding-bottom: 22px; }
+  .authform { gap: 12px; }
+  .authform { padding: 24px 24px calc(32px + env(safe-area-inset-bottom, 0px)); }
 }
-
 .shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .shots.dropping { outline: 2px dashed var(--accent); outline-offset: 4px; }
 .shot { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg); }
@@ -340,6 +378,56 @@ dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: 
 .toast:empty { display: none; }
 @media (min-width: 900px) { .toast { bottom: 28px; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
+
+/* ---------- polish: depth, motion ---------- */
+.card, .kpi, .tcard { box-shadow: var(--shadow); transition: border-color .2s, transform .25s var(--ease), box-shadow .25s; }
+.kpi:hover, .tcard:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.kpi .v { letter-spacing: -.01em; }
+.btn, .primary { transition: transform .15s var(--ease), box-shadow .2s, filter .2s, background .2s, border-color .2s; }
+.btn:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); }
+.primary { background: var(--grad); border-color: transparent; box-shadow: var(--glow); }
+.primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.btn:active, .primary:active { transform: translateY(0) scale(.98); filter: none; }
+.btn.danger:hover { background: var(--bad-bg); border-color: var(--bad); }
+input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="search"], input[type="email"], input[type="password"], select, textarea { transition: border-color .2s, box-shadow .2s, background .2s; }
+input:focus, select:focus, textarea:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent); }
+.logo { background: var(--grad); box-shadow: var(--glow); }
+.nav a { position: relative; transition: background .2s, color .2s, transform .2s var(--ease); }
+.nav a:hover { color: var(--fg); background: var(--surface-2); }
+.nav a.on { background: var(--accent-soft); }
+.side .nav a.on::before { content: ""; position: absolute; left: -16px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--grad); }
+.tabs { background: color-mix(in srgb, var(--surface) 88%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.tabs a.on svg { transform: translateY(-1px) scale(1.08); }
+.tabs a svg { transition: transform .25s var(--ease); }
+.cell { transition: transform .15s var(--ease), border-color .2s, background .2s; }
+button.cell:hover { transform: translateY(-1px); border-color: var(--accent); }
+.pill { transition: background .2s; }
+.toast { animation: toastin .3s var(--ease); }
+dialog[open]:not(.auth) { animation: dlgin .26s var(--ease); }
+dialog:not(.auth)::backdrop { background: rgba(5, 4, 12, .62); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: fadein .25s ease; }
+.view.enter > * { animation: rise .5s var(--ease) both; }
+.view.enter > *:nth-child(2) { animation-delay: .05s; } .view.enter > *:nth-child(3) { animation-delay: .1s; }
+.view.enter > *:nth-child(4) { animation-delay: .15s; } .view.enter > *:nth-child(5) { animation-delay: .2s; }
+.view.enter > *:nth-child(n+6) { animation-delay: .25s; }
+.view.enter .kpi { animation: rise .55s var(--ease) both; }
+.view.enter .kpi:nth-child(2) { animation-delay: .06s; } .view.enter .kpi:nth-child(3) { animation-delay: .12s; }
+.view.enter .kpi:nth-child(4) { animation-delay: .18s; } .view.enter .kpi:nth-child(5) { animation-delay: .24s; } .view.enter .kpi:nth-child(6) { animation-delay: .3s; }
+.view.enter .readyhead svg { animation: popin .7s .15s var(--ease) both; }
+.view.enter .chart .line { stroke-dasharray: 3000; stroke-dashoffset: 3000; animation: drawline3 1.3s .2s var(--ease) forwards; }
+.view.enter .chart .area { animation: fadein 1s .5s ease both; }
+.view.enter .tcard { animation: rise .45s var(--ease) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popin { from { opacity: 0; transform: scale(.82) rotate(-25deg); } to { opacity: 1; transform: none; } }
+@keyframes dlgin { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes gatein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes toastin { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes drift { from { transform: translate(0, 0) scale(1); } to { transform: translate(50px, 36px) scale(1.12); } }
+@keyframes drawline { to { stroke-dashoffset: 0; } }
+@keyframes drawline3 { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
 </style>
 </head>
 <body>
@@ -549,34 +637,46 @@ dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: 
 </dialog>
 
 <dialog id="authDlg" class="auth" aria-labelledby="authTitle">
-  <form class="authform" id="authForm" novalidate>
-    <button type="button" class="authx" id="authX" aria-label="Close">
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-    </button>
-    <div class="authbrand">
-      <svg viewBox="0 0 512 512" width="36" height="36" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#7c5cff"/><path d="M130 350l100-100 80 80 130-160" fill="none" stroke="#fff" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span>TradeNest</span>
-    </div>
-    <h2 id="authTitle">Welcome back</h2>
-    <p class="authsub" id="authSub">Sign in to see your trades and screenshots on any device.</p>
-    <div class="authtabs" role="tablist" aria-label="Account">
-      <button type="button" role="tab" id="tabIn" aria-selected="true">Sign in</button>
-      <button type="button" role="tab" id="tabUp" aria-selected="false">Create account</button>
-    </div>
-    <label for="aEmail">Email address<input type="email" id="aEmail" placeholder="you@example.com" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" required></label>
-    <label for="aPass">Password
-      <span class="pwwrap">
-        <input type="password" id="aPass" autocomplete="current-password" placeholder="Your password" required>
-        <button type="button" class="pwshow" id="aShow" aria-pressed="false">Show</button>
-      </span>
-    </label>
-    <p class="authhint" id="aHint" hidden>Use at least 8 characters.</p>
-    <button type="button" class="linkbtn" id="aForgot">Forgot password?</button>
-    <p class="msg" id="aMsg" role="alert"></p>
-    <button type="submit" class="primary authgo" id="aSignin">Sign in</button>
-    <button type="submit" class="primary authgo" id="aCreate" hidden>Create account</button>
-    <p class="authfoot">Free. Private to your account. Works on every device.</p>
-  </form>
+  <div class="gate">
+    <aside class="authhero" aria-hidden="false">
+      <i class="orb o1"></i><i class="orb o2"></i>
+      <div class="authbrand">
+        <svg viewBox="0 0 512 512" width="38" height="38" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b6cff"/><stop offset="1" stop-color="#3ea6ff"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#lg)"/><path d="M130 350l100-100 80 80 130-160" fill="none" stroke="#fff" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>TradeNest</span>
+      </div>
+      <h1 class="herotitle">Your trading journal, on every device.</h1>
+      <p class="herosub">Log trades, mark up your screenshots and track your payout rules in one calm place.</p>
+      <ul class="herolist">
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 15l5-4 4 3 3-2 6 4"/></svg><span><b>Screenshots you can draw on</b><small>Pen, arrows, boxes and text on every trade</small></span></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg><span><b>Payout and consistency tracking</b><small>Your own rules, checked automatically</small></span></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 018 0v3"/></svg><span><b>Private to your account</b><small>Synced safely between phone and computer</small></span></li>
+      </ul>
+      <svg class="herochart" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true"><path class="hc-area" d="M0 100 C40 96 60 70 100 74 S160 98 200 62 S270 52 310 34 S370 20 400 8 L400 120 L0 120Z"/><path class="hc-line" d="M0 100 C40 96 60 70 100 74 S160 98 200 62 S270 52 310 34 S370 20 400 8" pathLength="1"/></svg>
+    </aside>
+    <form class="authform" id="authForm" novalidate>
+      <h2 id="authTitle">Welcome back</h2>
+      <p class="authsub" id="authSub">Sign in to see your trades and screenshots on any device.</p>
+      <div class="authtabs" role="tablist" aria-label="Account">
+        <button type="button" role="tab" id="tabIn" aria-selected="true">Sign in</button>
+        <button type="button" role="tab" id="tabUp" aria-selected="false">Create account</button>
+      </div>
+      <label for="aEmail">Email address<input type="email" id="aEmail" placeholder="you@example.com" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" required></label>
+      <label for="aPass">Password
+        <span class="pwwrap">
+          <input type="password" id="aPass" autocomplete="current-password" placeholder="Your password" required>
+          <button type="button" class="pwshow" id="aShow" aria-pressed="false">Show</button>
+        </span>
+      </label>
+      <p class="authhint" id="aHint" hidden>Use at least 8 characters.</p>
+      <button type="button" class="linkbtn" id="aForgot">Forgot password?</button>
+      <p class="msg" id="aMsg" role="alert"></p>
+      <button type="submit" class="primary authgo" id="aSignin">Sign in</button>
+      <button type="submit" class="primary authgo" id="aCreate" hidden>Create account</button>
+      <div class="author"><span>or</span></div>
+      <button type="button" class="btn authgo guest" id="aGuest">Continue as guest</button>
+      <p class="authfoot" id="aGuestNote">Guest mode keeps your trades on this device only. You can create an account later.</p>
+    </form>
+  </div>
 </dialog>
 
 <dialog id="newPwDlg" aria-labelledby="newPwTitle">
@@ -811,6 +911,15 @@ dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: 
   }
 
   /* ---------- dashboard ---------- */
+  function countUp(node, to) {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var t0 = performance.now(), dur = 900;
+    (function step(t) {
+      var k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      node.textContent = money(round2(to * e));
+      if (k < 1 && node.isConnected) requestAnimationFrame(step); else node.textContent = money(to);
+    })(t0);
+  }
   function renderKpis(m) {
     var c = m.c, box = $('kpis');
     box.textContent = '';
@@ -818,8 +927,8 @@ dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: 
     var avgW = m.tW ? m.gw / m.tW : 0, avgL = m.tL ? m.gl / m.tL : 0;
     var ratio = !m.tN ? '—' : (avgL > 0 ? (avgW / avgL).toFixed(2) : (avgW > 0 ? '∞' : '—'));
     [
-      ['Total profit', money(m.total), money(c.startProfit) + ' before tracking', m.total >= 0 ? 'pos' : 'neg'],
-      ['Payout available', money(m.avail), 'Above the ' + money(c.buffer) + ' buffer', m.avail > c.minPayout ? 'pos' : ''],
+      ['Total profit', money(m.total), money(c.startProfit) + ' before tracking', m.total >= 0 ? 'pos' : 'neg', m.total],
+      ['Payout available', money(m.avail), 'Above the ' + money(c.buffer) + ' buffer', m.avail > c.minPayout ? 'pos' : '', m.avail],
       ['Trade win %', m.tN ? pct1(m.tW / m.tN) : '—', m.tN ? m.tW + (m.tW === 1 ? ' win, ' : ' wins, ') + m.tL + (m.tL === 1 ? ' loss' : ' losses') : 'No trades logged yet', ''],
       ['Profit factor', pf, 'Wins divided by losses', ''],
       ['Avg win / loss', ratio, m.tN ? money(avgW) + ' / ' + money(avgL) : 'No trades logged yet', ''],
@@ -827,7 +936,9 @@ dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: 
     ].forEach(function (it) {
       var d = el('div', 'kpi');
       d.appendChild(el('div', 'k', it[0]));
-      d.appendChild(el('div', 'v ' + it[3], it[1]));
+      var vv = el('div', 'v ' + it[3], it[1]);
+      if (it[4] != null) vv.dataset.to = String(it[4]);
+      d.appendChild(vv);
       d.appendChild(el('div', 'd', it[2]));
       box.appendChild(d);
     });
@@ -1526,9 +1637,14 @@ dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: 
     var h = (location.hash || '').slice(1);
     return VIEWS.some(function (v) { return v.id === h; }) ? h : 'dashboard';
   }
+  var enterTimer = 0;
   function showView() {
     var cur = curView();
     VIEWS.forEach(function (v) { $('v-' + v.id).hidden = v.id !== cur; });
+    var vw = $('v-' + cur);
+    vw.classList.remove('enter'); void vw.offsetWidth; vw.classList.add('enter');
+    if (cur === 'dashboard') Array.prototype.forEach.call(document.querySelectorAll('#kpis .v[data-to]'), function (n) { countUp(n, Number(n.dataset.to)); });
+    clearTimeout(enterTimer); enterTimer = setTimeout(function () { vw.classList.remove('enter'); }, 1800);
     navLinks.forEach(function (a) {
       var on = a.getAttribute('data-v') === cur;
       a.classList.toggle('on', on);
@@ -1988,6 +2104,15 @@ dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: 
     return m.slice(0, 200);
   }
   var authMode = 'in';
+  function guestFlag(v) {
+    try { if (v === undefined) return localStorage.getItem('tn-guest') === '1'; if (v) localStorage.setItem('tn-guest', '1'); else localStorage.removeItem('tn-guest'); } catch (e) {}
+    return false;
+  }
+  function goGuest() {
+    guestFlag(true);
+    if ($('authDlg').open) $('authDlg').close();
+    toast('Guest mode. Your trades stay on this device.');
+  }
   function setMode(m) {
     authMode = m === 'up' ? 'up' : 'in';
     var up = authMode === 'up';
@@ -2023,7 +2148,7 @@ dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: 
     var r = await sb.auth.signInWithPassword(f).catch(function (e) { return { error: e }; });
     authBusy(false);
     if (r.error) { aMsg(friendly(r.error), true); return; }
-    $('aPass').value = ''; $('authDlg').close(); toast('Signed in');
+    $('aPass').value = ''; guestFlag(false); $('authDlg').close(); toast('Signed in');
   }
   async function doCreate() {
     var f = authFields(true);
@@ -2033,7 +2158,7 @@ dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: 
     authBusy(false);
     if (r.error) { aMsg(friendly(r.error), true); return; }
     if (!r.data || !r.data.session) { aMsg('Almost done. Check your email and tap the link to confirm, then come back here and sign in.'); return; }
-    $('aPass').value = ''; $('authDlg').close(); toast('Account created');
+    $('aPass').value = ''; guestFlag(false); $('authDlg').close(); toast('Account created');
   }
   async function doForgot() {
     var email = $('aEmail').value.trim();
@@ -2066,6 +2191,7 @@ dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: 
     var r = await sb.auth.signOut({ scope: 'local' }).catch(function (e) { return { error: e }; });
     if (r && r.error) { explicitOut = false; toast('Could not sign out. Try again.'); return; }
     toast('Signed out');
+    guestFlag(false); setTimeout(function () { openAuth('in'); }, 250);
   }
   function wireAuth() {
     $('welcomeSignin').addEventListener('click', function () { openAuth('in'); });
@@ -2078,7 +2204,8 @@ dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: 
       this.textContent = show ? 'Hide' : 'Show'; this.setAttribute('aria-pressed', String(show));
     });
     $('aForgot').addEventListener('click', doForgot);
-    $('authX').addEventListener('click', function () { $('authDlg').close(); });
+    $('aGuest').addEventListener('click', goGuest);
+    $('authDlg').addEventListener('cancel', function (ev) { ev.preventDefault(); goGuest(); });
     $('newPwForm').addEventListener('submit', doNewPw);
     $('npCancel').addEventListener('click', function () { $('newPwDlg').close(); });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) scheduleSync(300); });
@@ -2094,6 +2221,12 @@ dialog.auth { width: min(420px, calc(100% - 24px)); overflow: auto; background: 
     fillFields();
     initAuth();
     renderAll(); showView(); renderSyncLine(); renderAcct();
+    if (sb && !user && !guestFlag()) {
+      var sess = null;
+      try { var gs = await sb.auth.getSession(); sess = gs && gs.data && gs.data.session; } catch (e) {}
+      await storeChain;
+      if (!sess && !user && !guestFlag() && !$('newPwDlg').open) openAuth('in');
+    }
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(function () {});
   }
   init();
