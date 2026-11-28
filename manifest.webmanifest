@@ -1,7 +1,7 @@
 {
-  "name": "Payout Journal",
-  "short_name": "Journal",
-  "description": "Trading journal with screenshots, drawing and payout tracking.",
+  "name": "TradeNest",
+  "short_name": "TradeNest",
+  "description": "Trading journal with screenshots, drawing and payout tracking. Sign in to see your trades on any device.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

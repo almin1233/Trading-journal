@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0c0b14">
-<meta name="description" content="Trading journal with screenshots, drawing, and payout tracking for a funded account.">
-<title>Payout Journal</title>
+<meta name="description" content="TradeNest is a trading journal with screenshots, drawing and payout tracking. Sign in to see your trades on any device.">
+<title>TradeNest</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -199,7 +199,7 @@ button.cell { cursor: pointer; }
 }
 
 label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
-input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="search"], select, textarea {
+input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="search"], input[type="email"], input[type="password"], select, textarea {
   font: inherit; font-size: 16px; color: var(--fg); background: var(--bg);
   border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; min-width: 0;
 }
@@ -256,6 +256,14 @@ legend { padding: 0; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .fields small, .hint { color: var(--muted); font-size: 12px; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
 .statline { color: var(--muted); margin: 0 0 4px; }
+.syncline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0; color: var(--muted); font-size: 13px; }
+.syncline .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 6px; }
+.syncline .dot.ok { background: var(--good); }
+.syncline .dot.err { background: var(--bad); }
+.syncline .dot.busy { background: var(--warn); }
+.linkbtn { background: none; border: 0; padding: 4px 0; min-height: 36px; color: var(--accent-text); font: 600 13px var(--font-body); cursor: pointer; text-align: left; justify-self: start; }
+.acct { display: grid; gap: 10px; }
+.acct .who { font-weight: 600; overflow-wrap: anywhere; }
 .steps { margin: 0 0 4px; padding-left: 20px; display: grid; gap: 8px; }
 .steps li { padding-left: 4px; }
 
@@ -314,7 +322,7 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
   <aside class="side">
     <div class="brand">
       <span class="logo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17l5-5 4 4 7-8"/></svg></span>
-      <div><b>Payout Journal</b><small>Funded account tracker</small></div>
+      <div><b>TradeNest</b><small>Trading journal</small></div>
     </div>
     <nav class="nav" id="navSide" aria-label="Sections"></nav>
   </aside>
@@ -328,6 +336,7 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
       <button type="button" class="primary" id="newBtn">New trade</button>
     </header>
     <p class="warnbar" id="warn" role="status"></p>
+    <p class="syncline" id="syncLine" role="status" hidden></p>
 
     <section class="view" id="v-dashboard" aria-label="Dashboard">
       <section class="card" id="welcome" hidden>
@@ -339,8 +348,9 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
         <div class="actions">
           <a class="primary" href="#rules">Set my rules</a>
           <button type="button" class="btn" id="welcomeNew">Log a trade</button>
+          <button type="button" class="btn" id="welcomeSignin" hidden>Sign in or create account</button>
         </div>
-        <p class="hint">Private by design. Everything you enter stays in this browser on this device. Nothing is sent to a server, and nobody else can see it.</p>
+        <p class="hint" id="welcomeHint">Private by design. Everything you enter stays in this browser on this device. Nothing is sent to a server, and nobody else can see it.</p>
       </section>
       <div class="kpis" id="kpis"></div>
       <div class="grid2">
@@ -383,10 +393,14 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
         <p class="hint">Match these to your own firm. Rules save by themselves and only on this device.</p>
         <div class="fields" id="fields"></div>
       </section>
+      <section class="card" id="acctCard">
+        <h2>Account and sync</h2>
+        <div class="acct" id="acctBody"></div>
+      </section>
       <section class="card">
         <h2>Backup</h2>
         <p class="statline" id="stat"></p>
-        <p class="hint">Your trades and screenshots are stored in this browser only. Export a backup now and then, and to move to another phone or computer.</p>
+        <p class="hint" id="bkHint">Your trades and screenshots are stored in this browser only. Export a backup now and then, and to move to another phone or computer.</p>
         <div class="actions">
           <button type="button" class="btn" id="expBtn">Export backup</button>
           <button type="button" class="btn" id="impBtn">Import backup</button>
@@ -509,8 +523,46 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
   </div>
 </dialog>
 
+<dialog id="authDlg" aria-labelledby="authTitle">
+  <form class="dlg" id="authForm" novalidate>
+    <div class="dlg-h">
+      <h2 id="authTitle">Sign in to TradeNest</h2>
+      <button type="button" class="btn" id="authX">Close</button>
+    </div>
+    <div class="dlg-b">
+      <p class="hint">Sign in to see your trades and screenshots on any device. Each account is private to its owner.</p>
+      <label for="aEmail">Email<input type="email" id="aEmail" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" required></label>
+      <label for="aPass">Password<input type="password" id="aPass" autocomplete="current-password" required></label>
+      <p class="hint">New here? Use at least 8 characters, then tap Create account.</p>
+      <button type="button" class="linkbtn" id="aForgot">Forgot password?</button>
+      <p class="msg" id="aMsg" role="alert"></p>
+    </div>
+    <div class="dlg-f">
+      <button type="button" class="btn" id="aCreate">Create account</button>
+      <div class="right"><button type="submit" class="primary" id="aSignin">Sign in</button></div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="newPwDlg" aria-labelledby="newPwTitle">
+  <form class="dlg" id="newPwForm" novalidate>
+    <div class="dlg-h"><h2 id="newPwTitle">Choose a new password</h2></div>
+    <div class="dlg-b">
+      <label for="npPass">New password<input type="password" id="npPass" autocomplete="new-password" required></label>
+      <p class="hint">Use at least 8 characters.</p>
+      <p class="msg" id="npMsg" role="alert"></p>
+    </div>
+    <div class="dlg-f">
+      <button type="button" class="btn" id="npCancel">Cancel</button>
+      <div class="right"><button type="submit" class="primary" id="npSave">Save password</button></div>
+    </div>
+  </form>
+</dialog>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="config.js"></script>
+<script src="vendor/supabase.js"></script>
 <script>
 (function () {
   'use strict';
@@ -538,7 +590,12 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
   var cfg = Object.assign({}, DEF);
   var entries = {};
   var idb = null;
-  var mem = { kv: new Map(), entries: new Map(), images: new Map() };
+  function freshMem() { return { kv: new Map(), entries: new Map(), images: new Map(), tombs: new Map() }; }
+  var mem = freshMem();
+  var dbName = 'payout-journal', user = null, sb = null;
+  var dirty = { e: {}, s: {}, cfg: false }, tombs = {}, cfgUpdated = 0, lastSync = 0;
+  var syncPromise = null, syncAgain = false, syncTimer = null, syncState = 'off', syncErr = '';
+  var explicitOut = false, storeChain = Promise.resolve();
   var imgURLs = new Map();
   var jf = { q: '', res: 'all', date: '' };
   var now = new Date();
@@ -580,17 +637,18 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
   }
 
   /* ---------- storage ---------- */
-  function openDb() {
+  function openDb(name) {
     return new Promise(function (resolve, reject) {
       if (!window.indexedDB) { reject(new Error('IndexedDB is not available')); return; }
-      var r = indexedDB.open('payout-journal', 1);
+      var r = indexedDB.open(name || dbName, 2);
       r.onupgradeneeded = function () {
         var d = r.result;
-        d.createObjectStore('kv');
-        d.createObjectStore('entries', { keyPath: 'id' });
-        d.createObjectStore('images', { keyPath: 'id' });
+        if (!d.objectStoreNames.contains('kv')) d.createObjectStore('kv');
+        if (!d.objectStoreNames.contains('entries')) d.createObjectStore('entries', { keyPath: 'id' });
+        if (!d.objectStoreNames.contains('images')) d.createObjectStore('images', { keyPath: 'id' });
+        if (!d.objectStoreNames.contains('tombs')) d.createObjectStore('tombs', { keyPath: 'id' });
       };
-      r.onsuccess = function () { resolve(r.result); };
+      r.onsuccess = function () { var d = r.result; d.onversionchange = function () { d.close(); }; resolve(d); };
       r.onerror = function () { reject(r.error); };
       r.onblocked = function () { reject(new Error('blocked')); };
     });
@@ -638,7 +696,7 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
     var base = await toBlob(c);
     var thumb = await toBlob(scaled(c, 480), 'image/webp', 0.8);
     if (img.close) img.close();
-    return { id: uid(), base: base, flat: base, thumb: thumb, marks: [], w: c.width, h: c.height };
+    return { id: uid(), base: base, flat: base, thumb: thumb, marks: [], w: c.width, h: c.height, synced: false, updated: Date.now() };
   }
   function drawMark(ctx, m) {
     ctx.save();
@@ -686,7 +744,13 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
     return o;
   }
   function dropImageURLs(id) { var o = imgURLs.get(id); if (o) { URL.revokeObjectURL(o.thumb); imgURLs.delete(id); } }
-  async function deleteImage(id) { dropImageURLs(id); await dbDel('images', id); }
+  async function deleteImage(id) {
+    dropImageURLs(id);
+    var rec = await dbGet('images', id);
+    await dbDel('images', id);
+    if (rec && rec.synced) await addTomb('s', id);
+    else if (user) delete dirty.s[id];
+  }
 
   /* ---------- numbers ---------- */
   function calc() {
@@ -1036,25 +1100,40 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
       inp.addEventListener('input', function () {
         if (inp.value === '' || !isFinite(inp.value)) return;
         cfg[f[0]] = Number(inp.value);
+        cfgUpdated = Date.now(); markCfg();
         renderAll();
         clearTimeout(cfgTimer);
-        cfgTimer = setTimeout(function () { dbPut('kv', cfg, 'cfg').catch(function () { setWarn('Could not save your rules. Storage may be full or blocked.'); }); }, 400);
+        cfgTimer = setTimeout(function () {
+          Promise.all([dbPut('kv', cfg, 'cfg'), dbPut('kv', cfgUpdated, 'cfgUpdated'), saveDirty()])
+            .then(function () { scheduleSync(); })
+            .catch(function () { setWarn('Could not save your rules. Storage may be full or blocked.'); });
+        }, 400);
       });
       lab.appendChild(inp);
       if (f[2]) lab.appendChild(el('small', null, f[2]));
       box.appendChild(lab);
     });
-    FIELDS.forEach(function (f) { $('cfg_' + f[0]).value = cfg[f[0]]; });
+    fillFields();
+  }
+  function fillFields() {
+    FIELDS.forEach(function (f) { var i = $('cfg_' + f[0]); if (i && document.activeElement !== i) i.value = cfg[f[0]]; });
   }
   function renderStat() {
     var n = Object.keys(entries).length, s = 0;
     Object.values(entries).forEach(function (e) { s += (e.images || []).length; });
-    $('stat').textContent = n + (n === 1 ? ' trade' : ' trades') + ' and ' + s + (s === 1 ? ' screenshot' : ' screenshots') + ' stored in this browser.';
+    $('stat').textContent = n + (n === 1 ? ' trade' : ' trades') + ' and ' + s + (s === 1 ? ' screenshot' : ' screenshots') + (user ? ' in your account.' : ' stored in this browser.');
+    $('bkHint').textContent = user
+      ? 'Your data is saved to your account and copied on this device. A backup file is a spare copy you keep yourself.'
+      : 'Your trades and screenshots are stored in this browser only. Export a backup now and then, and to move to another phone or computer.';
   }
 
   function renderAll() {
     var m = calc();
     $('welcome').hidden = Object.keys(entries).length > 0;
+    $('welcomeSignin').hidden = !(sb && !user);
+    $('welcomeHint').textContent = !sb
+      ? 'Private by design. Everything you enter stays in this browser on this device. Nothing is sent to a server, and nobody else can see it.'
+      : (user ? 'Your trades sync to your account. Sign in on any device to see them.' : 'Create a free account to see your trades on any device. Your data is private to your account.');
     renderKpis(m); renderReady(m); renderChart(m); renderBars(m); renderLimits(m); renderCal(m); renderJournal(m); renderStat();
   }
   function setWarn(t) { $('warn').textContent = t || ''; }
@@ -1191,6 +1270,11 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
     var rem = draft.removed.slice();
     draft.added = [];
     for (var i = 0; i < rem.length; i++) await deleteImage(rem[i]);
+    if (user) {
+      markE(e.id);
+      for (var q = 0; q < e.images.length; q++) { var rr = await dbGet('images', e.images[q]); if (rr && !rr.synced) markS(rr.id); }
+      await saveDirty(); scheduleSync();
+    }
     await closeEntry(true);
     renderAll();
     toast('Saved ' + money(e.pnl, true) + ' on ' + shortDate(e.date));
@@ -1204,6 +1288,8 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
     for (var j = 0; j < draft.added.length; j++) if (e.images.indexOf(draft.added[j]) < 0) await deleteImage(draft.added[j]);
     await dbDel('entries', e.id);
     delete entries[e.id];
+    await addTomb('e', e.id);
+    scheduleSync();
     draft.added = [];
     await closeEntry(true);
     renderAll();
@@ -1311,9 +1397,10 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
         var rec = ann.rec;
         rec.marks = ann.marks;
         var out = await flatten(rec);
-        rec.flat = out.flat; rec.thumb = out.thumb;
+        rec.flat = out.flat; rec.thumb = out.thumb; rec.updated = Date.now();
         await dbPut('images', rec);
         dropImageURLs(rec.id);
+        if (rec.synced && user) { markS(rec.id); await saveDirty(); scheduleSync(); }
         $('annDlg').close();
         if (draft) renderShots();
         renderAll();
@@ -1339,9 +1426,9 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
   async function exportBackup() {
     toast('Preparing backup…');
     try {
-      var imgs = await dbAll('images'), out = { app: 'payout-journal', version: 1, exported: new Date().toISOString(), cfg: cfg, entries: Object.values(entries), images: [] };
+      var imgs = await dbAll('images'), out = { app: 'tradenest', version: 1, exported: new Date().toISOString(), cfg: cfg, entries: Object.values(entries), images: [] };
       for (var i = 0; i < imgs.length; i++) out.images.push({ id: imgs[i].id, w: imgs[i].w, h: imgs[i].h, marks: imgs[i].marks || [], base: await blobToDataURL(imgs[i].base) });
-      download(JSON.stringify(out), 'payout-journal-backup-' + todayStr() + '.json', 'application/json');
+      download(JSON.stringify(out), 'tradenest-backup-' + todayStr() + '.json', 'application/json');
       toast('Backup downloaded');
     } catch (err) { toast('Could not create the backup.'); }
   }
@@ -1361,7 +1448,7 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
   async function importBackup(file) {
     var d;
     try { d = JSON.parse(await file.text()); } catch (err) { toast('That file is not a valid backup.'); return; }
-    if (!d || d.app !== 'payout-journal' || !Array.isArray(d.entries)) { toast('That file is not a Payout Journal backup.'); return; }
+    if (!d || (d.app !== 'tradenest' && d.app !== 'payout-journal') || !Array.isArray(d.entries)) { toast('That file is not a TradeNest backup.'); return; }
     var imgs = Array.isArray(d.images) ? d.images : [];
     if (!window.confirm('Import ' + d.entries.length + ' trades and ' + imgs.length + ' screenshots? Items with the same id are replaced. Everything else stays.')) return;
     toast('Importing…');
@@ -1369,20 +1456,22 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
       for (var i = 0; i < imgs.length; i++) {
         var im = imgs[i];
         if (!im || typeof im.id !== 'string' || typeof im.base !== 'string' || im.base.slice(0, 11) !== 'data:image/') continue;
-        var rec = { id: im.id.slice(0, 60), base: dataURLToBlob(im.base), w: Number(im.w) || 1, h: Number(im.h) || 1, marks: Array.isArray(im.marks) ? im.marks : [] };
+        var rec = { id: im.id.slice(0, 60), base: dataURLToBlob(im.base), w: Number(im.w) || 1, h: Number(im.h) || 1, marks: cleanMarks(im.marks), synced: false, updated: Date.now() };
         var out = await flatten(rec);
         rec.flat = out.flat; rec.thumb = out.thumb;
-        await dbPut('images', rec); dropImageURLs(rec.id);
+        await dbPut('images', rec); dropImageURLs(rec.id); markS(rec.id);
       }
       for (var j = 0; j < d.entries.length; j++) {
         var e = cleanEntry(d.entries[j]);
-        if (e) { await dbPut('entries', e); entries[e.id] = e; }
+        if (e) { if (user) e.updated = Date.now(); await dbPut('entries', e); entries[e.id] = e; markE(e.id); }
       }
       if (d.cfg && typeof d.cfg === 'object') {
-        for (var k in DEF) { if (isFinite(d.cfg[k])) cfg[k] = Number(d.cfg[k]); }
-        await dbPut('kv', cfg, 'cfg');
-        FIELDS.forEach(function (f) { $('cfg_' + f[0]).value = cfg[f[0]]; });
+        for (var k in DEF) { if (typeof d.cfg[k] === 'number' && isFinite(d.cfg[k])) cfg[k] = d.cfg[k]; }
+        cfgUpdated = Date.now(); markCfg();
+        await dbPut('kv', cfg, 'cfg'); await dbPut('kv', cfgUpdated, 'cfgUpdated');
+        fillFields();
       }
+      await saveDirty(); scheduleSync();
       renderAll();
       toast('Backup imported');
     } catch (err) { toast('The import stopped part way. Some items may be missing.'); }
@@ -1393,7 +1482,7 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
     Object.values(entries).sort(function (a, b) { return (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')); }).forEach(function (e) {
       rows.push([e.date, e.time, e.symbol, e.side, e.pnl, e.setup, e.rating || '', (e.tags || []).join('; '), e.notes, (e.images || []).length]);
     });
-    download(rows.map(function (r) { return r.map(csvCell).join(','); }).join('\n'), 'payout-journal-trades-' + todayStr() + '.csv', 'text/csv');
+    download(rows.map(function (r) { return r.map(csvCell).join(','); }).join('\n'), 'tradenest-trades-' + todayStr() + '.csv', 'text/csv');
     toast('CSV downloaded');
   }
 
@@ -1413,7 +1502,7 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
     var v = VIEWS.filter(function (x) { return x.id === cur; })[0];
     $('pageTitle').textContent = v.label;
     $('pageSub').textContent = v.sub;
-    document.title = v.label + ' · Payout Journal';
+    document.title = v.label + ' · TradeNest';
     window.scrollTo(0, 0);
   }
   function goView(id) {
@@ -1468,19 +1557,488 @@ dialog::backdrop { background: rgba(5, 4, 12, .68); }
     window.addEventListener('beforeunload', function (ev) { if (entryDirty()) { ev.preventDefault(); ev.returnValue = ''; } });
   }
 
-  async function init() {
-    try { idb = await openDb(); } catch (e) { idb = null; }
-    if (idb) {
-      try {
-        var c = await dbGet('kv', 'cfg');
-        if (c) for (var k in DEF) { if (isFinite(c[k])) cfg[k] = Number(c[k]); }
-        (await dbAll('entries')).forEach(function (e) { var ce = cleanEntry(e); if (ce) entries[ce.id] = ce; });
-      } catch (e) { setWarn('Could not read your saved data.'); }
-    } else {
-      setWarn('This browser is blocking storage (private mode?). Entries will be lost when you close the tab. Use a normal window, or export a backup before you leave.');
+  /* ---------- accounts and sync ---------- */
+  var COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
+  function cleanMarks(arr) {
+    if (!Array.isArray(arr)) return [];
+    var out = [];
+    var pt = function (p) { return Array.isArray(p) && p.length === 2 && isFinite(p[0]) && isFinite(p[1]) ? [Number(p[0]), Number(p[1])] : null; };
+    var wd = function (v) { return Math.min(80, Math.max(1, Number(v) || 4)); };
+    arr.slice(0, 400).forEach(function (m) {
+      if (!m || typeof m !== 'object') return;
+      var c = typeof m.c === 'string' && COLOR_RE.test(m.c) ? m.c : '#ff4d5e';
+      if (m.t === 'pen' && Array.isArray(m.p)) {
+        var p = m.p.slice(0, 5000).map(pt).filter(Boolean);
+        if (p.length) out.push({ t: 'pen', c: c, w: wd(m.w), p: p });
+      } else if (m.t === 'rect' || m.t === 'arrow') {
+        var a = pt(m.a), b = pt(m.b);
+        if (a && b) out.push({ t: m.t, c: c, w: wd(m.w), a: a, b: b });
+      } else if (m.t === 'text' && typeof m.txt === 'string') {
+        var a2 = pt(m.a);
+        if (a2) out.push({ t: 'text', c: c, s: Math.min(200, Math.max(8, Number(m.s) || 24)), a: a2, txt: m.txt.slice(0, 120) });
+      }
+    });
+    return out;
+  }
+
+  function agoText(t) {
+    if (!t) return 'not yet';
+    var s = Math.round((Date.now() - t) / 1000);
+    if (s < 45) return 'just now';
+    var m = Math.round(s / 60);
+    if (m < 60) return m + ' min ago';
+    var h = Math.round(m / 60);
+    if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+    var d = Math.round(h / 24);
+    return d + (d === 1 ? ' day ago' : ' days ago');
+  }
+  function errText(err) {
+    var m = err && err.message ? String(err.message) : 'Unknown error';
+    if (/relation|does not exist|schema cache|Could not find the table/i.test(m)) return 'The online database is not set up yet.';
+    if (/JWT|expired|not authenticated/i.test(m)) return 'Your sign-in expired. Sign in again.';
+    if (/fetch|network|Failed to/i.test(m)) return 'Could not reach the server.';
+    return m.slice(0, 160);
+  }
+  function saveDirty() { return dbPut('kv', dirty, 'dirty').catch(function () {}); }
+  function hasPending() { return !!(Object.keys(dirty.e).length || Object.keys(dirty.s).length || dirty.cfg || Object.keys(tombs).length); }
+  function markE(id) { if (user) dirty.e[id] = 1; }
+  function markS(id) { if (user) dirty.s[id] = 1; }
+  function markCfg() { if (user) dirty.cfg = true; }
+  async function addTomb(kind, id) {
+    if (!user) return;
+    var t = { id: kind + ':' + id, kind: kind, rid: id, updated: Date.now() };
+    tombs[t.id] = t; delete dirty[kind][id];
+    await dbPut('tombs', t).catch(function () {});
+    await saveDirty();
+  }
+  function scheduleSync(ms) {
+    if (!sb || !user) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(function () { syncNow(); }, ms == null ? 1500 : ms);
+  }
+  function setSyncState(s, msg) { syncState = s; syncErr = msg || ''; renderSyncLine(); renderAcct(); }
+
+  async function fetchAll(table, cols) {
+    var out = [], from = 0, step = 1000;
+    for (;;) {
+      var r = await sb.from(table).select(cols).order('id', { ascending: true }).range(from, from + step - 1);
+      if (r.error) throw r.error;
+      var rows = r.data || [];
+      out = out.concat(rows);
+      if (rows.length < step) break;
+      from += step;
     }
-    buildNav(); buildFields(); buildTags(); initAnnotator(); wire();
-    renderAll(); showView();
+    return out;
+  }
+  async function fetchByIds(table, ids) {
+    var out = [];
+    for (var i = 0; i < ids.length; i += 50) {
+      var r = await sb.from(table).select('*').in('id', ids.slice(i, i + 50));
+      if (r.error) throw r.error;
+      out = out.concat(r.data || []);
+    }
+    return out;
+  }
+  async function pullCfg() {
+    var r = await sb.from('settings').select('*').maybeSingle();
+    if (r.error) throw r.error;
+    var row = r.data;
+    if (!row || !(Number(row.updated) > cfgUpdated)) return false;
+    var d = row.data || {};
+    for (var k in DEF) { if (typeof d[k] === 'number' && isFinite(d[k])) cfg[k] = d[k]; }
+    cfgUpdated = Number(row.updated); dirty.cfg = false;
+    await dbPut('kv', cfg, 'cfg'); await dbPut('kv', cfgUpdated, 'cfgUpdated'); await saveDirty();
+    return true;
+  }
+  async function pullShots() {
+    var meta = await fetchAll('shots', 'id,updated,deleted'), need = [], drop = [], changed = false;
+    var local = {};
+    (await dbAll('images')).forEach(function (r) { local[r.id] = r; });
+    meta.forEach(function (r) {
+      var l = local[r.id], t = tombs['s:' + r.id], ru = Number(r.updated) || 0;
+      if (t && t.updated >= ru) return;
+      if (r.deleted) { if (l) drop.push(r.id); return; }
+      if (!l || ru > (l.updated || 0)) need.push(r.id);
+    });
+    for (var i = 0; i < drop.length; i++) { dropImageURLs(drop[i]); await dbDel('images', drop[i]); changed = true; }
+    if (!need.length) return changed;
+    var rows = await fetchByIds('shots', need);
+    for (var j = 0; j < rows.length; j++) {
+      var row = rows[j], l2 = local[row.id], rec;
+      if (!l2) {
+        var dl = await sb.storage.from('shots').download(user.id + '/' + row.id);
+        if (dl.error || !dl.data) continue;
+        rec = { id: String(row.id).slice(0, 60), base: dl.data, w: Number(row.w) || 1, h: Number(row.h) || 1 };
+      } else rec = l2;
+      rec.marks = cleanMarks(row.marks); rec.synced = true; rec.updated = Number(row.updated) || Date.now();
+      try {
+        var out = await flatten(rec);
+        rec.flat = out.flat; rec.thumb = out.thumb;
+      } catch (e) { continue; }
+      await dbPut('images', rec); dropImageURLs(rec.id);
+      delete tombs['s:' + rec.id];
+      changed = true;
+    }
+    return changed;
+  }
+  async function pullEntries() {
+    var meta = await fetchAll('entries', 'id,updated,deleted'), need = [], changed = false;
+    for (var i = 0; i < meta.length; i++) {
+      var r = meta[i], e = entries[r.id], t = tombs['e:' + r.id], ru = Number(r.updated) || 0;
+      if (t && t.updated >= ru) continue;
+      if (r.deleted) {
+        if (e && ru >= e.updated) { await dbDel('entries', e.id); delete entries[e.id]; delete dirty.e[e.id]; changed = true; }
+        continue;
+      }
+      if (!e || ru > e.updated) need.push(r.id);
+    }
+    if (!need.length) return changed;
+    var rows = await fetchByIds('entries', need);
+    for (var j = 0; j < rows.length; j++) {
+      var ce = cleanEntry(rows[j].data);
+      if (!ce) continue;
+      ce.updated = Number(rows[j].updated) || ce.updated;
+      if (tombs['e:' + ce.id]) { await dbDel('tombs', 'e:' + ce.id); delete tombs['e:' + ce.id]; }
+      await dbPut('entries', ce); entries[ce.id] = ce; delete dirty.e[ce.id];
+      changed = true;
+    }
+    return changed;
+  }
+  async function pushShots() {
+    var ids = Object.keys(dirty.s);
+    for (var i = 0; i < ids.length; i++) {
+      var id = ids[i], rec = await dbGet('images', id);
+      if (!rec) { delete dirty.s[id]; continue; }
+      if (!rec.updated) rec.updated = Date.now();
+      var stamp = rec.updated;
+      if (!rec.synced) {
+        var up = await sb.storage.from('shots').upload(user.id + '/' + id, rec.base, { upsert: true, contentType: (rec.base && rec.base.type) || 'image/webp' });
+        if (up.error) throw up.error;
+      }
+      var r = await sb.from('shots').upsert({ user_id: user.id, id: id, w: rec.w, h: rec.h, marks: rec.marks || [], updated: stamp, deleted: false }, { onConflict: 'user_id,id' });
+      if (r.error) throw r.error;
+      var cur = await dbGet('images', id);
+      if (cur) { cur.synced = true; await dbPut('images', cur); }
+      if (!cur || cur.updated === stamp) delete dirty.s[id];
+    }
+    await saveDirty();
+    var ts = Object.values(tombs).filter(function (t) { return t.kind === 's'; });
+    for (var j = 0; j < ts.length; j++) {
+      var t = ts[j];
+      var rr = await sb.from('shots').upsert({ user_id: user.id, id: t.rid, marks: [], updated: t.updated, deleted: true }, { onConflict: 'user_id,id' });
+      if (rr.error) throw rr.error;
+      await sb.storage.from('shots').remove([user.id + '/' + t.rid]);
+      await dbDel('tombs', t.id); delete tombs[t.id];
+    }
+  }
+  async function pushEntries() {
+    var ids = Object.keys(dirty.e), rows = [], stamps = {};
+    ids.forEach(function (id) {
+      var e = entries[id];
+      if (e) { rows.push({ user_id: user.id, id: id, data: e, updated: e.updated, deleted: false }); stamps[id] = e.updated; }
+    });
+    for (var i = 0; i < rows.length; i += 50) {
+      var r = await sb.from('entries').upsert(rows.slice(i, i + 50), { onConflict: 'user_id,id' });
+      if (r.error) throw r.error;
+    }
+    ids.forEach(function (id) { if (!entries[id] || entries[id].updated === stamps[id]) delete dirty.e[id]; });
+    await saveDirty();
+    var ts = Object.values(tombs).filter(function (t) { return t.kind === 'e'; }), trows = ts.map(function (t) {
+      return { user_id: user.id, id: t.rid, data: {}, updated: t.updated, deleted: true };
+    });
+    for (var j = 0; j < trows.length; j += 50) {
+      var rr = await sb.from('entries').upsert(trows.slice(j, j + 50), { onConflict: 'user_id,id' });
+      if (rr.error) throw rr.error;
+    }
+    for (var k = 0; k < ts.length; k++) { await dbDel('tombs', ts[k].id); delete tombs[ts[k].id]; }
+  }
+  async function pushCfg() {
+    if (!dirty.cfg) return;
+    var r = await sb.from('settings').upsert({ user_id: user.id, data: cfg, updated: cfgUpdated || Date.now() }, { onConflict: 'user_id' });
+    if (r.error) throw r.error;
+    dirty.cfg = false; await saveDirty();
+  }
+  async function runSync() {
+    if (!navigator.onLine) { setSyncState('offline'); return; }
+    setSyncState('syncing');
+    var changed = false;
+    try {
+      if (await pullCfg()) changed = true;
+      if (await pullShots()) changed = true;
+      if (await pullEntries()) changed = true;
+      await pushShots(); await pushEntries(); await pushCfg();
+      lastSync = Date.now();
+      await dbPut('kv', lastSync, 'lastSync').catch(function () {});
+      setSyncState('ok');
+    } catch (err) {
+      setSyncState('error', errText(err));
+    }
+    if (changed) { fillFields(); renderAll(); }
+  }
+  function syncNow() {
+    if (!sb || !user) return Promise.resolve();
+    if (syncPromise) { syncAgain = true; return syncPromise; }
+    syncPromise = runSync().then(function () {}, function () {}).then(function () {
+      syncPromise = null;
+      if (syncAgain) { syncAgain = false; scheduleSync(800); }
+    });
+    return syncPromise;
+  }
+
+  async function loadStore() {
+    try { idb = await openDb(dbName); } catch (e) { idb = null; }
+    if (!idb) {
+      setWarn('This browser is blocking storage (private mode?). Entries will be lost when you close the tab. Use a normal window, or export a backup before you leave.');
+      return;
+    }
+    setWarn('');
+    try {
+      var c = await dbGet('kv', 'cfg');
+      if (c) for (var k in DEF) { if (typeof c[k] === 'number' && isFinite(c[k])) cfg[k] = c[k]; }
+      cfgUpdated = Number(await dbGet('kv', 'cfgUpdated')) || 0;
+      lastSync = Number(await dbGet('kv', 'lastSync')) || 0;
+      var d = await dbGet('kv', 'dirty');
+      dirty = { e: (d && d.e) || {}, s: (d && d.s) || {}, cfg: !!(d && d.cfg) };
+      (await dbAll('tombs')).forEach(function (t) { if (t && t.id) tombs[t.id] = t; });
+      (await dbAll('entries')).forEach(function (e) { var ce = cleanEntry(e); if (ce) entries[ce.id] = ce; });
+    } catch (e) { setWarn('Could not read your saved data.'); }
+  }
+  async function offerLegacy() {
+    var key = 'tn-legacy-' + user.id;
+    try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) { return; }
+    var old = null;
+    try { old = await openDb('payout-journal'); } catch (e) { return; }
+    try {
+      var oe = await req(old.transaction('entries').objectStore('entries').getAll());
+      var oi = await req(old.transaction('images').objectStore('images').getAll());
+      var oc = await req(old.transaction('kv').objectStore('kv').get('cfg'));
+      if (!oe.length && !oc) return;
+      var msg = oe.length
+        ? 'Copy the ' + oe.length + (oe.length === 1 ? ' trade' : ' trades') + ' saved on this device into your account?'
+        : 'Copy the rules saved on this device into your account?';
+      if (!window.confirm(msg)) return;
+      for (var i = 0; i < oi.length; i++) {
+        var r = oi[i];
+        if (!r || !r.id || !r.base) continue;
+        r.synced = false; r.updated = Date.now(); r.marks = cleanMarks(r.marks);
+        await dbPut('images', r); markS(r.id);
+      }
+      for (var j = 0; j < oe.length; j++) {
+        var ce = cleanEntry(oe[j]);
+        if (ce && !entries[ce.id]) { await dbPut('entries', ce); entries[ce.id] = ce; markE(ce.id); }
+      }
+      if (oc && cfgUpdated === 0) {
+        for (var k in DEF) { if (typeof oc[k] === 'number' && isFinite(oc[k])) cfg[k] = oc[k]; }
+        cfgUpdated = Date.now(); markCfg();
+        await dbPut('kv', cfg, 'cfg'); await dbPut('kv', cfgUpdated, 'cfgUpdated');
+      }
+      await saveDirty();
+      toast('Copied to your account');
+    } catch (e) {
+      toast('Could not copy the saved trades.');
+    } finally {
+      try { old.close(); } catch (e) {}
+    }
+  }
+  async function switchStore(u) {
+    clearTimeout(syncTimer);
+    if (syncPromise) { try { await syncPromise; } catch (e) {} }
+    var prev = dbName;
+    if ($('entryDlg').open) { draft = null; $('entryDlg').close(); }
+    if ($('annDlg').open) $('annDlg').close();
+    if (idb) { try { idb.close(); } catch (e) {} idb = null; }
+    imgURLs.forEach(function (o) { URL.revokeObjectURL(o.thumb); });
+    imgURLs.clear();
+    entries = {}; tombs = {}; dirty = { e: {}, s: {}, cfg: false };
+    cfg = Object.assign({}, DEF); cfgUpdated = 0; lastSync = 0;
+    mem = freshMem();
+    user = u; dbName = u ? 'tradenest-' + u.id : 'payout-journal';
+    if (explicitOut && prev !== dbName && prev !== 'payout-journal') { try { indexedDB.deleteDatabase(prev); } catch (e) {} }
+    explicitOut = false;
+    await loadStore();
+    if (u) { await offerLegacy(); setSyncState('idle'); scheduleSync(0); } else setSyncState('off');
+    fillFields(); renderAll(); renderSyncLine(); renderAcct();
+  }
+  function onAuth(ev, session) {
+    if (ev === 'PASSWORD_RECOVERY') openNewPw();
+    var u = session && session.user ? session.user : null;
+    var cur = user ? user.id : null, nid = u ? u.id : null;
+    if (nid === cur) {
+      if (u) user = u;
+      renderSyncLine(); renderAcct();
+      return;
+    }
+    storeChain = storeChain.then(function () { return switchStore(u); }).catch(function () {});
+  }
+  function initAuth() {
+    var c = window.TRADENEST || {}, lib = window.supabase;
+    if (!c.supabaseUrl || !c.supabaseKey || !lib || typeof lib.createClient !== 'function') return false;
+    try {
+      sb = lib.createClient(c.supabaseUrl, c.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+      sb.auth.onAuthStateChange(function (ev, session) { setTimeout(function () { onAuth(ev, session); }, 0); });
+    } catch (e) { sb = null; return false; }
+    return true;
+  }
+
+  function renderSyncLine() {
+    var box = $('syncLine');
+    box.textContent = '';
+    if (!sb) { box.hidden = true; return; }
+    box.hidden = false;
+    var wrap = el('span'), dot = el('span', 'dot');
+    wrap.appendChild(dot);
+    if (!user) {
+      wrap.appendChild(document.createTextNode('Saved on this device only.'));
+      box.appendChild(wrap);
+      var b = el('button', 'linkbtn', 'Sign in to see your trades on any device'); b.type = 'button';
+      b.addEventListener('click', function () { openAuth(); });
+      box.appendChild(b);
+      return;
+    }
+    dot.className = 'dot ' + (syncState === 'ok' ? 'ok' : (syncState === 'error' ? 'err' : (syncState === 'syncing' ? 'busy' : '')));
+    var t = syncState === 'syncing' ? 'Syncing…'
+      : syncState === 'error' ? 'Could not sync. ' + syncErr
+      : syncState === 'offline' ? 'Offline. Changes sync when you are back online.'
+      : (lastSync ? 'Synced ' + agoText(lastSync) : 'Signed in');
+    wrap.appendChild(document.createTextNode(t + ' · ' + (user.email || 'your account')));
+    box.appendChild(wrap);
+    if (syncState === 'error') {
+      var rb = el('button', 'linkbtn', 'Try again'); rb.type = 'button';
+      rb.addEventListener('click', function () { syncNow(); });
+      box.appendChild(rb);
+    }
+  }
+  function renderAcct() {
+    var box = $('acctBody');
+    if (!box) return;
+    box.textContent = '';
+    if (!sb) {
+      box.appendChild(el('p', 'hint', 'Sign-in is not switched on for this site. Your trades stay on this device. Use Export backup below to move them to another device.'));
+      return;
+    }
+    if (!user) {
+      box.appendChild(el('p', 'statline', 'Create a free account to see your trades and screenshots on any phone or computer. Your data is private to your account.'));
+      var a = el('div', 'actions');
+      var c = el('button', 'primary', 'Create account'); c.type = 'button';
+      var s = el('button', 'btn', 'Sign in'); s.type = 'button';
+      c.addEventListener('click', function () { openAuth(); });
+      s.addEventListener('click', function () { openAuth(); });
+      a.appendChild(c); a.appendChild(s); box.appendChild(a);
+      return;
+    }
+    box.appendChild(el('div', 'who', user.email || 'Signed in'));
+    var st = syncState === 'syncing' ? 'Syncing now…'
+      : syncState === 'error' ? 'Could not sync. ' + syncErr
+      : syncState === 'offline' ? 'Offline. Changes sync when you are back online.'
+      : 'Last synced ' + agoText(lastSync) + '.';
+    box.appendChild(el('p', 'statline', st));
+    var act = el('div', 'actions');
+    var n = el('button', 'btn', 'Sync now'); n.type = 'button';
+    n.addEventListener('click', function () { syncNow(); });
+    var o = el('button', 'btn danger', 'Sign out'); o.type = 'button';
+    o.addEventListener('click', doSignOut);
+    act.appendChild(n); act.appendChild(o); box.appendChild(act);
+    box.appendChild(el('p', 'hint', 'Signing out removes the copy on this device. Your data stays safe in your account.'));
+  }
+
+  function aMsg(t, err) { var m = $('aMsg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : ''); }
+  function authBusy(b) { ['aCreate', 'aSignin', 'aForgot'].forEach(function (id) { $(id).disabled = b; }); }
+  function friendly(err) {
+    var m = (err && err.message) ? String(err.message) : 'Something went wrong. Try again.';
+    if (/invalid login/i.test(m)) return 'Wrong email or password.';
+    if (/not confirmed/i.test(m)) return 'Confirm your email first. Check your inbox for the link.';
+    if (/rate limit|too many|security purposes/i.test(m)) return 'Too many tries. Wait a few minutes and try again.';
+    if (/already (been )?registered|already exists/i.test(m)) return 'That email already has an account. Tap Sign in.';
+    if (/fetch|network|Failed to/i.test(m)) return 'Could not reach the server. Check your connection.';
+    return m.slice(0, 200);
+  }
+  function openAuth() {
+    if (!sb) return;
+    aMsg('');
+    $('aPass').value = '';
+    if (!$('authDlg').open) $('authDlg').showModal();
+    setTimeout(function () { ($('aEmail').value ? $('aPass') : $('aEmail')).focus(); }, 30);
+  }
+  function authFields(needLen) {
+    var email = $('aEmail').value.trim(), pw = $('aPass').value;
+    if (!/^\S+@\S+\.\S+$/.test(email)) { aMsg('Enter a valid email address.', true); $('aEmail').focus(); return null; }
+    if (!pw) { aMsg('Enter your password.', true); $('aPass').focus(); return null; }
+    if (needLen && pw.length < 8) { aMsg('Use at least 8 characters for your password.', true); $('aPass').focus(); return null; }
+    return { email: email, password: pw };
+  }
+  async function doSignIn(ev) {
+    if (ev) ev.preventDefault();
+    var f = authFields(false);
+    if (!f) return;
+    authBusy(true); aMsg('Signing in…');
+    var r = await sb.auth.signInWithPassword(f).catch(function (e) { return { error: e }; });
+    authBusy(false);
+    if (r.error) { aMsg(friendly(r.error), true); return; }
+    $('aPass').value = ''; $('authDlg').close(); toast('Signed in');
+  }
+  async function doCreate() {
+    var f = authFields(true);
+    if (!f) return;
+    authBusy(true); aMsg('Creating your account…');
+    var r = await sb.auth.signUp({ email: f.email, password: f.password, options: { emailRedirectTo: location.origin + location.pathname } }).catch(function (e) { return { error: e }; });
+    authBusy(false);
+    if (r.error) { aMsg(friendly(r.error), true); return; }
+    if (!r.data || !r.data.session) { aMsg('Almost done. Check your email and tap the link to confirm, then come back here and sign in.'); return; }
+    $('aPass').value = ''; $('authDlg').close(); toast('Account created');
+  }
+  async function doForgot() {
+    var email = $('aEmail').value.trim();
+    if (!/^\S+@\S+\.\S+$/.test(email)) { aMsg('Enter your email above first.', true); $('aEmail').focus(); return; }
+    authBusy(true); aMsg('Sending…');
+    var r = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname }).catch(function (e) { return { error: e }; });
+    authBusy(false);
+    if (r.error) { aMsg(friendly(r.error), true); return; }
+    aMsg('If that email has an account, a reset link is on its way.');
+  }
+  function openNewPw() {
+    $('npMsg').textContent = ''; $('npPass').value = '';
+    if (!$('newPwDlg').open) $('newPwDlg').showModal();
+  }
+  async function doNewPw(ev) {
+    ev.preventDefault();
+    var pw = $('npPass').value, m = $('npMsg');
+    m.className = 'msg err';
+    if (pw.length < 8) { m.textContent = 'Use at least 8 characters.'; return; }
+    m.className = 'msg'; m.textContent = 'Saving…';
+    var r = await sb.auth.updateUser({ password: pw }).catch(function (e) { return { error: e }; });
+    if (r.error) { m.className = 'msg err'; m.textContent = friendly(r.error); return; }
+    $('newPwDlg').close(); toast('Password changed');
+  }
+  async function doSignOut() {
+    toast('Syncing before you sign out…');
+    await syncNow();
+    if (hasPending() && !window.confirm('Some changes have not synced yet. Sign out anyway? Those changes will be lost.')) return;
+    explicitOut = true;
+    var r = await sb.auth.signOut({ scope: 'local' }).catch(function (e) { return { error: e }; });
+    if (r && r.error) { explicitOut = false; toast('Could not sign out. Try again.'); return; }
+    toast('Signed out');
+  }
+  function wireAuth() {
+    $('welcomeSignin').addEventListener('click', openAuth);
+    $('authForm').addEventListener('submit', doSignIn);
+    $('aCreate').addEventListener('click', doCreate);
+    $('aForgot').addEventListener('click', doForgot);
+    $('authX').addEventListener('click', function () { $('authDlg').close(); });
+    $('newPwForm').addEventListener('submit', doNewPw);
+    $('npCancel').addEventListener('click', function () { $('newPwDlg').close(); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) scheduleSync(300); });
+    window.addEventListener('online', function () { scheduleSync(300); });
+    window.addEventListener('offline', function () { if (user) setSyncState('offline'); });
+    setInterval(function () { if (!document.hidden && user) scheduleSync(0); }, 90000);
+    setInterval(function () { if (user) renderSyncLine(); }, 30000);
+  }
+
+  async function init() {
+    buildNav(); buildFields(); buildTags(); initAnnotator(); wire(); wireAuth();
+    await loadStore();
+    fillFields();
+    initAuth();
+    renderAll(); showView(); renderSyncLine(); renderAcct();
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(function () {});
   }
   init();
